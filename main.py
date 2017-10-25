@@ -2,6 +2,8 @@
 
 ### 1/ get PISA test results for 2015
 
+#robie sobie tutaj testy#
+
 #read in files with PISA results, separate for every subject (all years)
 pisa_data = read_multi_csv_data(['pisa_math_2003_2015.csv', 'pisa_read_2000_2015.csv', 'pisa_science_2006_2015.csv'])
 
