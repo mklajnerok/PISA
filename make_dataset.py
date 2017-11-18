@@ -8,45 +8,45 @@ import numpy as np
 import pylab
 
 def read_multi_csv_data(files_list):
-    """Read multi csv files from pisaprojectdatafiles directory and
-    create df_data dictionary containing separate data frames
+    """Read multi csv files from data_files directory and
+    create df_dict dictionary containing separate data frames
     :param files_list: list of csv files
-    :returns df_data: dict with name keys and data frames values"""
+    :returns df_data: dictionary with string keys and data frames values"""
     df_dict = {}
     for f in files_list:
-        d = pd.read_csv('pisaprojectdatafiles/{0}'.format(f))
+        d = pd.read_csv('data_files/{0}'.format(f))
         df_dict[f.replace('.csv', '')] = d
     return df_dict
 
 def show_dict_summary(df_dict):
-    """Print name, head and tail for each df in a dict
-    :param dict: dictionary with name keys and data frames values"""
+    """Print name, head and tail for each data frame in a df_dict dictionary
+    :param df_dict: dictionary with string keys and data frames values"""
     for k, v in df_dict.items():
         print('\n' + k + '\n')
         print(v.head())
         print(v.tail())
 
-def drop_dict_col(df_dict, del_col):
-    """In each df in a dict delete del_col columns
-    :param dict: dictionary with name keys and data frames values
+def drop_dict_columns(df_dict, del_col):
+    """In each data frame in a df_dict dictionary delete del_col columns
+    :param df_dict: dictionary with string keys and data frames values
     :param del_col: list"""
     for k, v in df_dict.items():
         for i in del_col:
             v.drop(i, axis=1, inplace=True)
 
-def rename_dict_col(df_dict, new_col):
-    """Rename columns in each df in a dict
-    :param dict: dictionary with name keys and data frames values
-    :param new_col: dict
+def rename_dict_columns(df_dict, new_col):
+    """In each data frame in a df_dict dictionary rename columns
+    :param df_dict: dictionary with string keys and data frames values
+    :param new_col: dictionary
     """
     for k, v in df_dict.items():
         v.rename(columns=new_col, inplace=True)
 
 def filter_dict_by_year(df_dict, year):
-    """Create a copy of dict and extract rows with a given year
-    :param dict: dictionary with name keys and data frames values
+    """Create a copy of df_dict and extract rows for a given year
+    :param df_dict: dictionary with string keys and data frames values
     :param year: int
-    :returns dict_year: dictionary with name keys and data frames values
+    :returns df_dict_year: dictionary with string keys and data frames values
     """
     df_dict_year = df_dict.copy()
     for k, v in df_dict_year.items():
@@ -56,8 +56,9 @@ def filter_dict_by_year(df_dict, year):
     return df_dict_year
 
 def merge_dict_by_year(df_dict_year):
-    """Take dict_year and merge each df in one data frame based on Code, then drop columns with year number
-    :param dict_year: dictionary with name keys and data frames values
+    """Take df_dict_year and merge each data frame in one based on Code,
+    then drop columns with year number
+    :param df_dict_year: dictionary with string keys and data frames values
     :returns df_data_joined: data frame"""
     df_data_joined = pd.DataFrame()
     for k, v in df_dict_year.items():
@@ -68,15 +69,15 @@ def merge_dict_by_year(df_dict_year):
     df_data_joined.drop(df_data_joined.columns[[1, 3, 5]], axis=1, inplace=True)
     return df_data_joined
 
-def rename_col(df_data, new_col):
-    """Take df_data and rename new_col columns
-    :param df_data: df
-    :param new_col: dict"""
+def rename_columns(df_data, new_col):
+    """Take df_data data frame and rename new_col columns
+    :param df_data: data frame
+    :param new_col: dictionary"""
     df_data.rename(columns=new_col, inplace=True)
 
 def create_name_code_dict():
     """Use pycountry library to create a map for converting from country name to country code
-    :returns map: dict"""
+    :returns name_code_dict: dictionary"""
     name_code_dict = {country.name: country.alpha_3 for country in pycountry.countries}
     dict_adjust = {'Czech Republic': 'CZE', 'Hong Kong SAR, China': 'HKG', 'Korea, Rep.': 'KOR',
                       'Macao SAR, China': 'MAC', 'OECD members': 'OED', 'Slovak Republic': 'SVK',
@@ -88,43 +89,34 @@ def create_name_code_dict():
 
 def reverse_dict(dictionary):
     """Reverse other map for converting from country code to country name
-    :param map: dict
-    :returns reversed_map: dict"""
+    :param dictionary: dictionary
+    :returns reversed_dict: dictionary"""
     reversed_dict = dict(zip(dictionary.values(), dictionary.keys()))
     return reversed_dict
 
-def add_country_col(df_data, code_name_dict):
-    """Take df_data, add a column with country name and fill it using map
+def add_country_name(df_data, code_name_dict):
+    """Take df_data, add a column with country name and fill it using code_name_dict
     :param df_data: data frame
-    :param map: dict"""
+    :param code_name_dict: dictionary"""
     mapper = lambda x: code_name_dict[x]
     df_data.insert(loc=0, column='Country', value=df_data.loc[:, 'Code'].copy())
     df_data['Country'] = df_data['Country'].apply(mapper)
     return df_data
 
-def add_code_col(df_data, name_code_dict):
-    """Take df_data, add a column with country code and fill it using map
-    :param df_data: data frame
-    :param map: dict"""
-    mapper = lambda x: name_code_dict[x]
-    df_data.insert(loc=1, column='Code', value=df_data.loc[:, 'Country'].copy())
-    df_data['Code'] = df_data['Code'].apply(mapper)
-    return df_data
-
 def get_average(df_data):
-    """Take df_data and calculate average pisa result for a given country,
+    """Takes a copy of df_data and calculate average pisa result for a given country,
     with formula: (math+read+2*science)/4
     :param df_data: data frame
     :returns df_data_new: data frame
     """
     df_data_new = df_data.copy()
     df_data_new.insert(loc=2, column='ave_result', value=0)
-    df_data_new['ave_result'] = round((df_data['math'] + df_data['read'] + 2 * df_data['science'])/4, 0)
+    df_data_new['ave_result'] = round((df_data['math'] + df_data['read'] + df_data['science']) / 3, 0)
     df_data_new.drop(['math', 'read', 'science'], axis=1, inplace=True)
     return df_data_new
 
 def get_codes_list(df_data):
-    """Create a list of countries code from column Code in df_data
+    """Create a list of countries codes from column Code in df_data
     change code for OECD members from OAVG to OED
     :param df_data: data frame
     :returns codes_list: list"""
@@ -139,19 +131,28 @@ def load_from_wbdata(countries, indicators, year_from, year_to):
     :param indicators: dict {ind_code : ind_name}
     :param year_from: starting year
     :param year_to: ending year
-    :returns df_data: multi index df
+    :returns df_data: multi index data frame
     """
     data_date = (datetime.datetime(year_from, 1, 1), datetime.datetime(year_to, 1, 1))
     df_data = wbdata.get_dataframe(indicators, country=countries, data_date=data_date, convert_date=False)
     return df_data
 
 def filter_by_year(df_data, year):
-    """Create a copy of df_data and extract rows for a particular year
+    """Create a copy of df_data and extract rows for a given year
     :param df_data: data frame
-    :param year: str
+    :param year: string
     :returns df_data_year: data frame"""
     df_data_year = df_data.xs(year, level='date').copy()
     return df_data_year
+
+def add_country_code(df_data, name_code_dict):
+    """Take df_data, add a column with country code and fill it using name_code_dict
+    :param df_data: data frame
+    :param name_code_dict: dictionary"""
+    mapper = lambda x: name_code_dict[x]
+    df_data.insert(loc=1, column='Code', value=df_data.loc[:, 'Country'].copy())
+    df_data['Code'] = df_data['Code'].apply(mapper)
+    return df_data
 
 def merge_df(df_data1, df_data2):
     """Merge two data frames on Code column, drop double country column

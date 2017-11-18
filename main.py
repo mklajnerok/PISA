@@ -11,11 +11,11 @@ pisa_data = read_multi_csv_data(['pisa_math_2003_2015.csv', 'pisa_read_2000_2015
 #show summary of PISA results
 show_dict_summary(pisa_data)
 
-#leave only columns with location, time and value for test result
-drop_dict_col(pisa_data, ['INDICATOR', 'SUBJECT', 'MEASURE', 'FREQUENCY', 'Flag Codes'])
+#drop unnecessary columns
+drop_dict_columns(pisa_data, ['INDICATOR', 'SUBJECT', 'MEASURE', 'FREQUENCY', 'Flag Codes'])
 
 #rename columns
-rename_dict_col(pisa_data, {'LOCATION': 'Code', 'Value': 'test_score', 'TIME': 'Time'})
+rename_dict_columns(pisa_data, {'LOCATION': 'Code', 'Value': 'test_score', 'TIME': 'Time'})
 
 #extract PISA results for 2015
 pisa_2015 = filter_dict_by_year(pisa_data, 2015)
@@ -27,15 +27,19 @@ show_dict_summary(pisa_2015)
 all_pisa_2015 = merge_dict_by_year(pisa_2015)
 
 #rename column labels
-rename_col(all_pisa_2015, {'test_score_x': 'math', 'test_score_y': 'read', 'test_score': 'science'})
+rename_columns(all_pisa_2015, {'test_score_x': 'math', 'test_score_y': 'read', 'test_score': 'science'})
 
 #add column with country name
 name_code_dict = create_name_code_dict()
 code_name_dict = reverse_dict(name_code_dict)
-add_country_col(all_pisa_2015, code_name_dict)
+add_country_name(all_pisa_2015, code_name_dict)
 
-#get average pisa result for every country -> use formala (2*science + math+read)/4
+#get average pisa result for every country
 all_pisa_2015_ave = get_average(all_pisa_2015)
+
+#show results in ascending order
+all_pisa_2015_ave.sort_values(['ave_result'], ascending=False)
+
 
 
 ### 2/ get countries' GDP data for 2015
@@ -53,10 +57,10 @@ gdp_ppp_2015 = filter_by_year(gdp_ppp, '2015')
 gdp_ppp_2015.reset_index(level=['country'], inplace=True)
 
 #rename column label
-rename_col(gdp_ppp_2015, {'country': 'Country'})
+rename_columns(gdp_ppp_2015, {'country': 'Country'})
 
 #add column with country code
-add_code_col(gdp_ppp_2015, name_code_dict)
+add_country_code(gdp_ppp_2015, name_code_dict)
 
 
 ### 3/ perform OLS between PISA results (3 separate subjects) and GDP PPP data
