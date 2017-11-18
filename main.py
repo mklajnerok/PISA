@@ -2,7 +2,8 @@
 
 ### 1/ get PISA test results for 2015
 
-#robie sobie tutaj testy#
+#change directory
+os.chdir('/Users/wikia/PycharmProjects/PISA')
 
 #read in files with PISA results, separate for every subject (all years)
 pisa_data = read_multi_csv_data(['pisa_math_2003_2015.csv', 'pisa_read_2000_2015.csv', 'pisa_science_2006_2015.csv'])
@@ -29,9 +30,12 @@ all_pisa_2015 = merge_dict_by_year(pisa_2015)
 rename_col(all_pisa_2015, {'test_score_x': 'math', 'test_score_y': 'read', 'test_score': 'science'})
 
 #add column with country name
-name_code_map = name_code_mapper()
-code_name_map = code_name_mapper(name_code_map)
-add_country_col(all_pisa_2015, code_name_map)
+name_code_dict = create_name_code_dict()
+code_name_dict = reverse_dict(name_code_dict)
+add_country_col(all_pisa_2015, code_name_dict)
+
+#get average pisa result for every country -> use formala (2*science + math+read)/4
+all_pisa_2015_ave = get_average(all_pisa_2015)
 
 
 ### 2/ get countries' GDP data for 2015
@@ -40,7 +44,7 @@ add_country_col(all_pisa_2015, code_name_map)
 countries_codes = get_codes_list(all_pisa_2015)
 
 #get GDP PPP data (NY.GDP.PCAP.PP.KD - GDP per capita, PPP (constant 2011 international $))
-gdp_ppp = api_data(countries_codes, {'NY.GDP.PCAP.PP.KD':'gdp_ppp'}, 2003, 2015)
+gdp_ppp = load_from_wbdata(countries_codes, {'NY.GDP.PCAP.PP.KD':'gdp_ppp'}, 2003, 2015)
 
 #get GDP PPP for 2015
 gdp_ppp_2015 = filter_by_year(gdp_ppp, '2015')
@@ -52,10 +56,10 @@ gdp_ppp_2015.reset_index(level=['country'], inplace=True)
 rename_col(gdp_ppp_2015, {'country': 'Country'})
 
 #add column with country code
-add_code_col(gdp_ppp_2015, name_code_map)
+add_code_col(gdp_ppp_2015, name_code_dict)
 
 
-### 3/ perform OLS between PISA results and GDP PPP data
+### 3/ perform OLS between PISA results (3 separate subjects) and GDP PPP data
 
 #merge data
 pisa_gdp_ppp = merge_df(all_pisa_2015, gdp_ppp_2015)
@@ -82,6 +86,44 @@ plot_read_gdp_ppp = show_scatterplot(pisa_gdp_ppp_log, ['gdp_ppp', 'read'], 'b')
 plot_scie_gdp_ppp_log = show_scatterplot(pisa_gdp_ppp_log, ['gdp_ppp', 'science'], 'g')
 
 
+### 3A/ perform OLS between PISA average results and GDP PPP data
+
+#merge data
+pisa_ave_gdp_ppp = merge_df(all_pisa_2015_ave, gdp_ppp_2015)
+
+#rename column label
+rename_col(pisa_ave_gdp_ppp, {'Country_x': 'Country'})
+
+#take log from GDP values
+pisa_ave_gdp_ppp_log = take_log(pisa_ave_gdp_ppp, ['gdp_ppp'])
+rename_col(pisa_ave_gdp_ppp_log, {'gdp_ppp': 'gdp_ppp_log'})
+
+#leave LUX out as an outlier
+pisa_ave_gdp_ppp_log_lux = pisa_ave_gdp_ppp_log[pisa_ave_gdp_ppp_log['Code'] != 'LUX']
+
+#perform OLS
+model_ave_gdp_ppp = smf.ols(formula='ave_result ~ gdp_ppp', data=pisa_ave_gdp_ppp).fit()
+model_ave_gdp_ppp_log = smf.ols(formula='ave_result ~ gdp_ppp_log', data=pisa_ave_gdp_ppp_log).fit()
+model_ave_gdp_ppp_log_lux = smf.ols(formula='ave_result ~ gdp_ppp_log', data=pisa_ave_gdp_ppp_log_lux).fit()
+
+#show summary
+model_ave_gdp_ppp.summary()
+model_ave_gdp_ppp_log.summary()
+model_ave_gdp_ppp_log_lux.summary()
+
+#plot
+plot_ave_gdp_ppp = show_scatterplot(pisa_ave_gdp_ppp, ['gdp_ppp', 'ave_result'], 'y')
+plot_ave_gdp_ppp_log = show_scatterplot(pisa_ave_gdp_ppp_log, ['gdp_ppp_log', 'ave_result'], 'm')
+
+#fit data
+lin_ave_gdp_ppp_log_pisa = fit_data_mat(pisa_ave_gdp_ppp_log['gdp_ppp_log'], pisa_ave_gdp_ppp_log['ave_result'], 1,
+                                    'gdp per capita', 'average pisa result')
+
+lin_ave_gdp_ppp_log_pisa_2 = fit_data_sea(pisa_ave_gdp_ppp_log['gdp_ppp_log'], pisa_ave_gdp_ppp_log['ave_result'], 1,
+                                      'gdp per capita', 'average pisa result')
+
+
+
 ### ### ### II ETAP ### ### ###
 
 ### 4/ get government expenses on education on pre-primary, primary and lower-secondary levels
@@ -92,7 +134,7 @@ gov_edu_expenses = csv_data_by_list('gov_exp_edu_ppp.csv', countries_codes)
 #select indicators: pre-primary, primary and lower secondary
 basic_edu_exp = get_some_ind(gov_edu_expenses, ['X_PPP_02_FSGOV', 'X_PPP_1_FSGOV', 'X_PPP_2_FSGOV'])
 
-#clean df - drop TIME, Flag Codes, Flags
+#drop unnecessary column
 basic_edu_exp = drop_col(basic_edu_exp, ['TIME', 'Flag Codes', 'Flags'])
 
 #pivot df to get similar structure like student_count_data
@@ -146,20 +188,16 @@ edu_data_joined = pd.merge(basic_edu_exp, basic_student_pop, how='right', on=['C
 edu_data_joined.sort_values(['Code', 'Time'], ascending=[True, True], inplace=True)
 edu_data_joined.reset_index(level=0, drop=True, inplace=True)
 
-#divide basic_edu_exp by basic_student_pop
-edu_data_per_student = edu_data_joined.copy()
-edu_data_per_student['pre_primary_per_student'] = edu_data_per_student['pre_primary_exp']/edu_data_per_student['pre_primary_pop']*1000000
-edu_data_per_student['primary_per_student'] = edu_data_per_student['primary_exp']/edu_data_per_student['primary_pop']*1000000
-edu_data_per_student['lower_sec_per_student'] = edu_data_per_student['lower_sec_exp']/edu_data_per_student['lower_sec_pop']*1000000
+#divide total expenses by number of students
+edu_data_per_student = divide_col_by_col(edu_data_joined, ['pre_primary_exp', 'primary_exp', 'lower_sec_exp'],
+                                         ['pre_primary_pop', 'primary_pop', 'lower_sec_pop'])
 
-#drop unnecessary columns
-edu_data_per_student = drop_col(edu_data_per_student, ['pre_primary_exp', 'primary_exp', 'lower_sec_exp', 'Country_y',
-                                                       'pre_primary_pop', 'primary_pop', 'lower_sec_pop'])
-#round values to zero places
-edu_data_per_student = edu_data_per_student.round(0)
+#drop unnecessary column
+edu_data_per_student = drop_col(edu_data_per_student, ['Country_y'])
 
 #rename column label
-edu_data_per_student = rename_col(edu_data_per_student, { 'Country_x': 'Country'})
+edu_data_per_student = rename_col(edu_data_per_student, {'Country_x': 'Country', 0: 'pre_primary_per_student',
+                                                         1: 'primary_per_student', 2: 'lower_sec_per_student'})
 
 #check number on Nan in edu_data_per_student
 index1 = np.where(edu_data_per_student['pre_primary_per_student'].isnull())[0]
@@ -175,8 +213,11 @@ student_total_expenses = estimate_total_cost(edu_data_per_student)
 #delete countries with zero data ([CAN, GRC, HKG, MAC, OAVG, SGP, TUR] [ISR, PER, SVN])
 student_total_expenses = student_total_expenses[student_total_expenses.Total != 0]
 
+#reset index
+student_total_expenses.reset_index(drop=True, inplace=True)
 
-### 7/ make OLS for total education cost and PISA results form 2015
+
+### 7/ make OLS for total education cost and PISA results form 2015 (3 separate subjects)
 
 #add column with country name
 student_total_expenses = add_country_col(student_total_expenses, code_name_map)
@@ -203,36 +244,151 @@ plot_read_expenses = show_scatterplot(pisa_expenses, ['Total', 'read'], 'b')
 plot_scie_expenses = show_scatterplot(pisa_expenses, ['Total', 'science'], 'g')
 
 
-### 8/ Try to fit data to polynomial and test which one is best
+### 7A/ OLS for total education cost and average PISA results from 2015
 
-#fit 2015 GDP_PPP to 2015 PISA results data
-lin_gdp_ppp_log_pisa = fit_data(pisa_gdp_ppp_log['gdp_ppp'], pisa_gdp_ppp_log['math'], 1)
-quad_gdp_ppp_log_pisa = fit_data(pisa_gdp_ppp_log['gdp_ppp'], pisa_gdp_ppp_log['math'], 2)
+#merge with average PISA results
+pisa_ave_expenses = merge_df(all_pisa_2015_ave, student_total_expenses)
+
+#rename column label
+rename_col(pisa_ave_expenses, {'Country_x': 'Country'})
+
+#leave LUX out as an outlier
+pisa_ave_expenses_lux = pisa_ave_expenses[pisa_ave_expenses['Code'] != 'LUX']
+
+#perform OLS
+model_ave_expenses = smf.ols(formula='ave_result ~ Total', data=pisa_ave_expenses).fit()
+model_ave_expenses_lux = smf.ols(formula='ave_result ~ Total', data=pisa_ave_expenses_lux).fit()
+
+#show summary
+model_ave_expenses.summary()
+model_ave_expenses_lux.summary()
+
+#plot
+plot_ave_expenses = show_scatterplot(pisa_ave_expenses, ['Total', 'ave_result'], 'm')
+
+#plot with curve
+lin_pisa_ave_expenses = fit_data_mat(pisa_ave_expenses['Total'], pisa_ave_expenses['ave_result'], 1,
+                                 'expenses on education per student', 'average pisa result')
+
+lin_pisa_ave_expenses_2 = fit_data_sea(pisa_ave_expenses['Total'], pisa_ave_expenses['ave_result'], 1,
+                                      'expenses on education per student', 'average pisa result')
+
+quad_pisa_ave_expenses = fit_data_mat(pisa_ave_expenses['Total'], pisa_ave_expenses['ave_result'], 2,
+                                 'expenses on education per student', 'average pisa result')
+
+quad_pisa_ave_expenses_2 = fit_data_sea(pisa_ave_expenses['Total'], pisa_ave_expenses['ave_result'], 2,
+                                    'expenses on education per student', 'average pisa result')
+
+
+
+### ### ### III ETAP ### ### ### - Check goodness of fit
+
+### 8/ Try to fit data to polynomial and test which degree fits best
+
+#fit GDP_per capita to PISA results data (2015) manually
+lin_ave_gdp_ppp_log_pisa = fit_data_mat(pisa_ave_gdp_ppp_log['gdp_ppp_log'], pisa_ave_gdp_ppp_log['ave_result'], 1,
+                                    'gdp per capita', 'average pisa result')
+
+lin_ave_gdp_ppp_log_pisa_2 = fit_data_sea(pisa_ave_gdp_ppp_log['gdp_ppp_log'], pisa_ave_gdp_ppp_log['ave_result'], 1,
+                                      'gdp per capita', 'average pisa result')
+
+
+quad_ave_gdp_ppp_log_pisa = fit_data_mat(pisa_ave_gdp_ppp_log['gdp_ppp_log'], pisa_ave_gdp_ppp_log['ave_result'], 2,
+                                    'gdp per capita', 'average pisa result')
+
+quad_ave_gdp_ppp_log_pisa_2 = fit_data_sea(pisa_ave_gdp_ppp_log['gdp_ppp_log'], pisa_ave_gdp_ppp_log['ave_result'], 2,
+                                      'gdp per capita', 'average pisa result')
 
 #leave LUX out
-pisa_gdp_ppp_log_out = pisa_gdp_ppp_log[pisa_gdp_ppp_log['Code'] != 'LUX']
-lin_gdp_ppp_log_pisa_out = fit_data(pisa_gdp_ppp_log_out['gdp_ppp'], pisa_gdp_ppp_log_out['math'], 1)
-quad_gdp_ppp_log_pisa_out = fit_data(pisa_gdp_ppp_log_out['gdp_ppp'], pisa_gdp_ppp_log_out['math'], 2)
+lin_ave_gdp_ppp_log_pisa_lux = fit_data_mat(pisa_ave_gdp_ppp_log_lux['gdp_ppp_log'], pisa_ave_gdp_ppp_log_lux['ave_result'], 1,
+                                    'gdp per capita', 'average pisa result')
 
-#fit total_student_expenses to 2015 PISA results data
-lin_expenses_pisa = fit_data(pisa_expenses['Total'], pisa_expenses['math'], 1)
-quad_expenses_pisa = fit_data(pisa_expenses['Total'], pisa_expenses['math'], 2)
+lin_ave_gdp_ppp_log_pisa_2_lux = fit_data_sea(pisa_ave_gdp_ppp_log_lux['gdp_ppp_log'], pisa_ave_gdp_ppp_log_lux['ave_result'], 1,
+                                      'gdp per capita', 'average pisa result')
+
+quad_ave_gdp_ppp_log_pisa_lux = fit_data_mat(pisa_ave_gdp_ppp_log_lux['gdp_ppp_log'], pisa_ave_gdp_ppp_log_lux['ave_result'], 2,
+                                    'gdp per capita', 'average pisa result')
+
+quad_ave_gdp_ppp_log_pisa_2_lux = fit_data_sea(pisa_ave_gdp_ppp_log_lux['gdp_ppp_log'], pisa_ave_gdp_ppp_log_lux['ave_result'], 2,
+                                      'gdp per capita', 'average pisa result')
+
+
+#fit data using list of many degrees for GDP_per capita to PISA results data (2015)
+degrees = (1, 2, 3, 4)
+gdp_models = gen_fits(pisa_ave_gdp_ppp_log['gdp_ppp_log'], pisa_ave_gdp_ppp_log['ave_result'], degrees)
+gdp_model_review = test_fits(gdp_models, degrees, pisa_ave_gdp_ppp_log['gdp_ppp_log'], pisa_ave_gdp_ppp_log['ave_result'])
 
 #leave LUX out
-pisa_expenses_out = pisa_expenses[pisa_expenses['Code'] != 'LUX']
-lin_expenses_pisa_out = fit_data(pisa_expenses_out['Total'], pisa_expenses_out['math'], 1)
-quad_expenses_pisa_out = fit_data(pisa_expenses_out['Total'], pisa_expenses_out['math'], 2)
+gdp_models_lux = gen_fits(pisa_ave_gdp_ppp_log_lux['gdp_ppp_log'], pisa_ave_gdp_ppp_log_lux['ave_result'], degrees)
+gdp_model_review_lux = test_fits(gdp_models_lux, degrees, pisa_ave_gdp_ppp_log_lux['gdp_ppp_log'], pisa_ave_gdp_ppp_log_lux['ave_result'])
+
+
+#fit data using list of many degrees for total_student_expenses to 2015 PISA results data
+expenses_models = gen_fits(pisa_ave_expenses['Total'], pisa_ave_expenses['ave_result'], degrees)
+expenses_model_review = test_fits(expenses_models, degrees, pisa_ave_expenses['Total'], pisa_ave_expenses['ave_result'])
+
+#leave LUX out
+expenses_models_lux = gen_fits(pisa_ave_expenses_lux['Total'], pisa_ave_expenses_lux['ave_result'], degrees)
+expenses_model_review_lux = test_fits(expenses_models_lux, degrees, pisa_ave_expenses_lux['Total'], pisa_ave_expenses_lux['ave_result'])
+
+
+### 8A/ Try to fit data into log or exponential
+
+# WYCHODZA DZIWNE WARTOSCI gdy probuje sprawdzic R squared
+np.polyfit(np.log(x), y, 1)
+np.polyfit(x, np.log(y), 1)
+np.polyfit(x, np.log(y), 1, w=np.sqrt(y))
+
+from scipy.optimize import curve_fit
+scipy.optimize.curve_fit(lambda t,a,b: a+b*np.log(t),  x,  y)
+scipy.optimize.curve_fit(lambda t,a,b: a*np.exp(b*t),  x,  y)
+scipy.optimize.curve_fit(lambda t,a,b: a*np.exp(b*t),  x,  y,  p0=(4, 0.1))
+
+def gen_fits(x, y, degrees):
+    """Compute coefficients for given degree polynomial
+    :param x: data frame
+    :param y: data frame
+    :param degrees: list
+    :returns array list"""
+    models = []
+    for d in degrees:
+        model = pylab.polyfit(x, y, d)
+        models.append(model)
+    extra_models = [np.polyfit(np.log(x), y, 1), np.polyfit(x, np.log(y), 1), np.polyfit(x, np.log(y), 1, w=np.sqrt(y))]
+    for j in extra_models:
+        models.append(j)
+    return models
+
+
+### 9/ Repeated Random Sampling cross_validation of models - check predictive power
+
+#GDP_per capita to PISA results data (2015)
+compare_predictive_power(20, [1, 2, 3, 4], pisa_ave_gdp_ppp_log['gdp_ppp_log'], pisa_ave_gdp_ppp_log['ave_result'])
+
+#leave LUX out
+compare_predictive_power(20, [1, 2, 3, 4], pisa_ave_gdp_ppp_log_lux['gdp_ppp_log'], pisa_ave_gdp_ppp_log_lux['ave_result'])
+
+#total_student_expenses to 2015 PISA results data
+compare_predictive_power(20, [1, 2, 3, 4], pisa_ave_expenses['Total'], pisa_ave_expenses['ave_result'])
+
+#leave LUX out
+compare_predictive_power(20, [1, 2, 3, 4], pisa_ave_expenses_lux['Total'], pisa_ave_expenses_lux['ave_result'])
+
+# sa minusy w porownaniu dla expense, a przy analizie dopasowania nie bylo ich wcale
+# nie dziala analiza dla danych bez luksemburga
 
 
 
 
-# cross-validation
-# clustering z uzykiem k nearest neighbours
+
+
+### 10/ Clustering with k nearest neighbours
+
+
+
 
 
 # test expenses per student for being exponentially distributed
-# try to identify clusters
-# outliers: LUX (big expenses, not too many people, the same with GDP, high gdp but medium PISA results)
 # w krajach biednych matematyka jest ponizej innych wynikow,
     # a im bogatsi albo wiecej wydaja to bardziej sie to przeklada na wyniki z matematyki w stosunku do innych wynikow
 
@@ -244,4 +400,3 @@ quad_expenses_pisa_out = fit_data(pisa_expenses_out['Total'], pisa_expenses_out[
 
 # moze jakis heat map gdzie najwyzsze wyniki albo gdzie najwyzsze korelacje
 
-# make average pisa result score (add all 3 test and divide by 3)

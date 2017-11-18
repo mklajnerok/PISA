@@ -140,3 +140,83 @@ def total_student_cost_v2(df_data):
             cost_temp += sum_col
         total_cost = total_cost.append(pd.DataFrame([[i, cost_temp]], columns=['Code', 'Total']), ignore_index=True)
     return total_cost
+
+#taking log
+#https://stats.stackexchange.com/questions/298/in-linear-regression-when-is-it-appropriate-to-use-the-log-of-an-independent-va
+
+
+"""Getting GDP data:
+- from World bank API (GDP PPP $, GDP US$ )
+- for the second part of analysis from 
+http://data.uis.unesco.org/
+Government expenditure on education as a percentage of GDP (z podzialem na poziomy edukacji)
+Government expenditure on education in PPP$ (z podzialem na poziomy edukacji)
+Government expenditure on education in US$ (z podzialem na poziomy edukacji)
+explaining levels of education http://www.unesco.org/education/information/nfsunesco/doc/isced_1997.html"""
+
+
+import six
+from pandas.plotting import table
+
+def render_table(data, col_width=3.0, row_height=0.625, font_size=14,
+                     header_color='#40466e', row_colors=['#f1f1f2', 'w'], edge_color='w',
+                     bbox=[0, 0, 1, 1], header_columns=0,
+                     ax=None, **kwargs):
+    if ax is None:
+        size = (np.array(data.shape[::-1]) + np.array([0, 1])) * np.array([col_width, row_height])
+        fig, ax = plt.subplots(figsize=size)
+        ax.axis('off')
+
+    table = ax.table(cellText=data.values, bbox=bbox, colLabels=data.columns, **kwargs)
+
+    table.auto_set_font_size(False)
+    table.set_fontsize(font_size)
+
+    for k, cell in six.iteritems(table._cells):
+        cell.set_edgecolor(edge_color)
+        if k[0] == 0 or k[1] < header_columns:
+            cell.set_text_props(weight='bold', color='w')
+            cell.set_facecolor(header_color)
+        else:
+            cell.set_facecolor(row_colors[k[0]%len(row_colors) ])
+    return ax
+
+render_table(df, header_columns=0, col_width=2.0)
+
+# set fig size
+fig, ax = plt.subplots(figsize=(40, 3))
+# no axes
+ax.xaxis.set_visible(False)
+ax.yaxis.set_visible(False)
+# no frame
+ax.set_frame_on(False)
+# plot table
+tab = table(ax, all_pisa_2015_ave, loc='upper right')
+# set font manually
+#tab.auto_set_font_size(False)
+#tab.set_fontsize(8)
+# save the result
+plt.savefig('test5_table.png')
+
+
+
+# zrobic histogramy z rozkladem zmiennych wyniki pisa i gdp kraju
+# poten scatterplot
+
+
+# przykład z handbooka jak dopasowac polynomial 7 stopnia dodanych
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import LinearRegression
+from sklearn.pipeline import make_pipeline
+poly_model = make_pipeline(PolynomialFeatures(7),LinearRegression())
+
+rng = np.random.RandomState(1)
+x = 10 * rng.rand(50)
+y = np.sin(x) + 0.1 * rng.randn(50)
+
+poly_model.fit(x[:, np.newaxis], y)
+xfit = np.linspace(0, 10, 1000)
+yfit = poly_model.predict(xfit[:, np.newaxis])
+
+plt.scatter(x, y)
+plt.plot(xfit, yfit);
