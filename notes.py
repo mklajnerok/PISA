@@ -19,6 +19,57 @@ def column_to_index(df_data, columns):
 #column_to_index(all_pisa_2015, ['COUNTRY CODE', 'COUNTRY NAME'])
 
 
+### 3A/ perform OLS between PISA results (3 separate subjects) and GDP PPP data
+
+#merge data
+pisa_gdp_ppp = merge_df(all_pisa_2015, gdp_ppp_2015)
+
+#rename column label
+rename_col(pisa_gdp_ppp, {'Country_x': 'Country'})
+
+#take log from GDP values
+pisa_gdp_ppp_log = take_log(pisa_gdp_ppp,['gdp_ppp'])
+
+#perform OLS
+model_math_gdp_ppp_log = smf.ols(formula='math ~ gdp_ppp', data=pisa_gdp_ppp_log).fit()
+model_read_gdp_ppp_log = smf.ols(formula='read ~ gdp_ppp', data=pisa_gdp_ppp_log).fit()
+model_scie_gdp_ppp_log = smf.ols(formula='science ~ gdp_ppp', data=pisa_gdp_ppp_log).fit()
+
+#show summary
+model_math_gdp_ppp_log.summary()
+model_read_gdp_ppp_log.summary()
+model_scie_gdp_ppp_log.summary()
+
+#plot
+plot_math_gdp_ppp_log = show_scatterplot(pisa_gdp_ppp_log, ['gdp_ppp', 'math'], 'r')
+plot_read_gdp_ppp = show_scatterplot(pisa_gdp_ppp_log, ['gdp_ppp', 'read'], 'b')
+plot_scie_gdp_ppp_log = show_scatterplot(pisa_gdp_ppp_log, ['gdp_ppp', 'science'], 'g')
+
+# try to create a function to perform ols automatically
+# try to create a function to plot many things at once
+
+import seaborn as sns
+
+def fit_data_sea(df_data1, df_data2, order, x_label, y_label):
+    """Plot data from df_data1 and df_data2 and try to fit a curve with a given degree using seaborn
+    :param df_data1: data frame
+    :param df_data2: data frame
+    :param x_label: str
+    :param y_label: str"""
+    sns.regplot(df_data1, df_data2, order=order, line_kws={"color": "r", "alpha": 0.1, "lw": 5})
+    plt.title('Measured displacement')
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.savefig('plots/with_curve.png')
+
+lin_ave_gdp_ppp_log_pisa_2 = fit_data_sea(pisa_ave_gdp_ppp_log['gdp_ppp_log'], pisa_ave_gdp_ppp_log['ave_result'], 1,
+                                      'gdp per capita', 'average pisa result')
+
+def show_bubbles(df_data, variables, color):
+    plt.scatter(x=df_data[variables[0]],y=df_data[variables[1]], s=z*1000, alpha=0.5)
+    plt.show()
+
+
 """WB API indicators summary:
     SE.XPD.SECO.PC.ZS	Government expenditure per student, secondary (% of GDP per capita) - drop for now
     SE.XPD.PRIM.PC.ZS	Government expenditure per student, primary (% of GDP per capita) - drop for now

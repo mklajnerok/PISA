@@ -154,7 +154,7 @@ def add_country_code(df_data, name_code_dict):
     df_data['Code'] = df_data['Code'].apply(mapper)
     return df_data
 
-def merge_df(df_data1, df_data2):
+def merge_df_onCode(df_data1, df_data2):
     """Merge two data frames on Code column, drop double country column
     :param df_data1: data frame
     :param df_data2: data frame
@@ -164,12 +164,13 @@ def merge_df(df_data1, df_data2):
     return df_joined
 
 def take_log(df_data, columns):
-    """Takes values from columns labels and transform them to log
+    """Create a copy of df_data and take log of values from columns
     :param df_data: data frame
-    :param columns: list of str"""
+    :param columns: list of strings"""
     log_data = df_data.copy()
     for i in columns:
         log_data[i] = np.log(log_data[i])
+        rename_columns(log_data, {i: str(i) + '_log'})
     return log_data
 
 def read_in(file):

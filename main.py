@@ -41,7 +41,6 @@ all_pisa_2015_ave = get_average(all_pisa_2015)
 all_pisa_2015_ave.sort_values(['ave_result'], ascending=False)
 
 
-
 ### 2/ get countries' GDP data for 2015
 
 #get list of countries, who took PISA test
@@ -63,44 +62,26 @@ rename_columns(gdp_ppp_2015, {'country': 'Country'})
 add_country_code(gdp_ppp_2015, name_code_dict)
 
 
-### 3/ perform OLS between PISA results (3 separate subjects) and GDP PPP data
+### 3/ perform OLS between PISA average results and GDP PPP data
 
 #merge data
-pisa_gdp_ppp = merge_df(all_pisa_2015, gdp_ppp_2015)
+pisa_ave_gdp_ppp = merge_df_onCode(all_pisa_2015_ave, gdp_ppp_2015)
 
 #rename column label
-rename_col(pisa_gdp_ppp, {'Country_x': 'Country'})
-
-#take log from GDP values
-pisa_gdp_ppp_log = take_log(pisa_gdp_ppp,['gdp_ppp'])
-
-#perform OLS
-model_math_gdp_ppp_log = smf.ols(formula='math ~ gdp_ppp', data=pisa_gdp_ppp_log).fit()
-model_read_gdp_ppp_log = smf.ols(formula='read ~ gdp_ppp', data=pisa_gdp_ppp_log).fit()
-model_scie_gdp_ppp_log = smf.ols(formula='science ~ gdp_ppp', data=pisa_gdp_ppp_log).fit()
-
-#show summary
-model_math_gdp_ppp_log.summary()
-model_read_gdp_ppp_log.summary()
-model_scie_gdp_ppp_log.summary()
+rename_columns(pisa_ave_gdp_ppp, {'Country_x': 'Country'})
 
 #plot
-plot_math_gdp_ppp_log = show_scatterplot(pisa_gdp_ppp_log, ['gdp_ppp', 'math'], 'r')
-plot_read_gdp_ppp = show_scatterplot(pisa_gdp_ppp_log, ['gdp_ppp', 'read'], 'b')
-plot_scie_gdp_ppp_log = show_scatterplot(pisa_gdp_ppp_log, ['gdp_ppp', 'science'], 'g')
-
-
-### 3A/ perform OLS between PISA average results and GDP PPP data
-
-#merge data
-pisa_ave_gdp_ppp = merge_df(all_pisa_2015_ave, gdp_ppp_2015)
-
-#rename column label
-rename_col(pisa_ave_gdp_ppp, {'Country_x': 'Country'})
+plot_ave_gdp_ppp = show_scatterplot(pisa_ave_gdp_ppp, ['gdp_ppp', 'ave_result'], 'y',
+                                    'PISA 2015 average result vs. GDP per capita', 'GDP per capita ($)',
+                                    'average test result (points)')
 
 #take log from GDP values
 pisa_ave_gdp_ppp_log = take_log(pisa_ave_gdp_ppp, ['gdp_ppp'])
-rename_col(pisa_ave_gdp_ppp_log, {'gdp_ppp': 'gdp_ppp_log'})
+
+#plot with GDP log
+plot_ave_gdp_ppp_log = show_scatterplot(pisa_ave_gdp_ppp_log, ['gdp_ppp_log', 'ave_result'], 'm',
+                                        'PISA 2015 average result vs. GDP per capita (log)', 'GDP per capita (log)',
+                                    'average test result (points)')
 
 #leave LUX out as an outlier
 pisa_ave_gdp_ppp_log_lux = pisa_ave_gdp_ppp_log[pisa_ave_gdp_ppp_log['Code'] != 'LUX']
@@ -115,16 +96,14 @@ model_ave_gdp_ppp.summary()
 model_ave_gdp_ppp_log.summary()
 model_ave_gdp_ppp_log_lux.summary()
 
-#plot
-plot_ave_gdp_ppp = show_scatterplot(pisa_ave_gdp_ppp, ['gdp_ppp', 'ave_result'], 'y')
-plot_ave_gdp_ppp_log = show_scatterplot(pisa_ave_gdp_ppp_log, ['gdp_ppp_log', 'ave_result'], 'm')
+#plot with curve
+lin_ave_gdp_ppp_log = fit_data_mat(pisa_ave_gdp_ppp_log['gdp_ppp_log'], pisa_ave_gdp_ppp_log['ave_result'], 1,
+                                   'Regression analysis curve fit', 'GDP per capita (log)',
+                                   'average test result (points)')
 
-#fit data
-lin_ave_gdp_ppp_log_pisa = fit_data_mat(pisa_ave_gdp_ppp_log['gdp_ppp_log'], pisa_ave_gdp_ppp_log['ave_result'], 1,
-                                    'gdp per capita', 'average pisa result')
-
-lin_ave_gdp_ppp_log_pisa_2 = fit_data_sea(pisa_ave_gdp_ppp_log['gdp_ppp_log'], pisa_ave_gdp_ppp_log['ave_result'], 1,
-                                      'gdp per capita', 'average pisa result')
+lin_ave_gdp_ppp_log_lux = fit_data_mat(pisa_ave_gdp_ppp_log_lux ['gdp_ppp_log'], pisa_ave_gdp_ppp_log_lux ['ave_result'], 1,
+                                       'Regression analysis curve fit (without Luxembourg)', 'GDP per capita (log)',
+                                   'average test result (points)')
 
 
 
