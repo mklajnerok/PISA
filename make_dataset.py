@@ -173,15 +173,12 @@ def take_log(df_data, columns):
         rename_columns(log_data, {i: str(i) + '_log'})
     return log_data
 
-def read_in(file):
-    df = pd.read_csv(file)
-    return df
-
 def read_csv_data_by_list(file, codes_list):
     """Read in a file from pisaprojectdatafiles directory and select rows with countries codes from codes_list
-    :param file: str
-    :param codes_list: list"""
-    df = pd.read_csv('pisaprojectdatafiles/{0}'.format(file))
+    :param file: string
+    :param codes_list: list
+    :returns: df_data: data frame"""
+    df = pd.read_csv('data_files/{0}'.format(file))
     df_data = pd.DataFrame()
     for i in codes_list:
         df_data = df_data.append(df.loc[df['LOCATION'] == i], ignore_index=True)
@@ -243,10 +240,10 @@ def estimate_total_cost(df_data):
 def sum_col(country_df, index_start, index_end, label):
     """Helper function for estimate_total_cost, which calculate total cost for a single country
     :param country_df: data frame
-    :param index_start: int
-    :param index_end: int
-    :param label: str
-    :returns col_sum: int"""
+    :param index_start: integer
+    :param index_end: integer
+    :param label: string
+    :returns col_sum: integer"""
     test_col = country_df[index_start:index_end][label]
     small_ratio = test_col.isnull().sum() / len(test_col.index)
     big_ratio = country_df[label].isnull().sum() / len(country_df.index)

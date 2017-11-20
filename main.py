@@ -111,27 +111,27 @@ lin_ave_gdp_ppp_log_lux = fit_data_mat(pisa_ave_gdp_ppp_log_lux ['gdp_ppp_log'],
 
 ### 4/ get government expenses on education on pre-primary, primary and lower-secondary levels
 
-#read in file and select given countries - source UNESCO database
-gov_edu_expenses = csv_data_by_list('gov_exp_edu_ppp.csv', countries_codes)
+#read in file for given countries (source UNESCO database)
+gov_edu_expenses = read_csv_data_by_list('gov_exp_edu_ppp.csv', countries_codes)
 
 #select indicators: pre-primary, primary and lower secondary
-basic_edu_exp = get_some_ind(gov_edu_expenses, ['X_PPP_02_FSGOV', 'X_PPP_1_FSGOV', 'X_PPP_2_FSGOV'])
+basic_edu_exp = filter_by_indicator(gov_edu_expenses, ['X_PPP_02_FSGOV', 'X_PPP_1_FSGOV', 'X_PPP_2_FSGOV'])
 
 #drop unnecessary column
-basic_edu_exp = drop_col(basic_edu_exp, ['TIME', 'Flag Codes', 'Flags'])
+basic_edu_exp = drop_columns(basic_edu_exp, ['TIME', 'Flag Codes', 'Flags'])
 
 #pivot df to get similar structure like student_count_data
-basic_edu_exp = basic_edu_exp.pivot_table('Value', ['Country','Time'], 'EDULIT_IND')
+basic_edu_exp = basic_edu_exp.pivot_table('Value', ['Country', 'Time'], 'EDULIT_IND')
 
 #reset multiindex "Country' and 'Time'
 basic_edu_exp.reset_index(level=['Country', 'Time'], inplace=True)
 
 #rename column labels
-basic_edu_exp = rename_col(
+basic_edu_exp = rename_columns(
     basic_edu_exp, { 'X_PPP_02_FSGOV': 'pre_primary_exp', 'X_PPP_1_FSGOV': 'primary_exp', 'X_PPP_2_FSGOV': 'lower_sec_exp'})
 
 #add new column with country code
-basic_edu_exp = add_code_col(basic_edu_exp, name_code_map)
+basic_edu_exp = add_country_code(basic_edu_exp, name_code_dict)
 
 
 ### 5/ get population number from pre-primary, primary and lower-secondary levels
@@ -143,19 +143,19 @@ SP.PRE.TOTL.IN   	Population of the official age for pre-primary education, both
 SP.PRM.TOTL.IN   	Population of the official age for primary education, both sexes (number)
 SP.SEC.LTOT.IN   	Population of the official age for lower secondary education, both sexes (number)
 """
-basic_student_pop = api_data(countries_codes, edu_indicators, 2003, 2014)
+basic_student_pop = load_from_wbdata(countries_codes, edu_indicators, 2003, 2014)
 
 #reset multiindex "country' and 'date'
 basic_student_pop.reset_index(level=['country', 'date'], inplace=True)
 
 #rename column labels
-basic_student_pop = rename_col(basic_student_pop, {'country': 'Country', 'date': 'Time'})
+basic_student_pop = rename_columns(basic_student_pop, {'country': 'Country', 'date': 'Time'})
 
 #change column order
 basic_student_pop = basic_student_pop[['Country', 'Time', 'pre_primary_pop', 'primary_pop', 'lower_sec_pop']]
 
 #add new column with country code
-basic_student_pop = add_code_col(basic_student_pop, name_code_map)
+basic_student_pop = add_country_code(basic_student_pop, name_code_dict)
 
 
 ### 6/ estimate average spending for education per student until he takes the test in 2015 (US$)
@@ -164,7 +164,7 @@ basic_student_pop = add_code_col(basic_student_pop, name_code_map)
 basic_edu_exp['Time'] = basic_edu_exp['Time'].apply(np.int16)
 basic_student_pop['Time'] = basic_student_pop['Time'].apply(np.int16)
 
-#merge basic_edu_exp and basic_student_pop, right method to stay with 2003-2014 period
+#merge expenses and population, right method to stay with 2003-2014 period
 edu_data_joined = pd.merge(basic_edu_exp, basic_student_pop, how='right', on=['Code', 'Time'])
 
 #sort by 'Code' and 'Time' and reset index
@@ -176,19 +176,11 @@ edu_data_per_student = divide_col_by_col(edu_data_joined, ['pre_primary_exp', 'p
                                          ['pre_primary_pop', 'primary_pop', 'lower_sec_pop'])
 
 #drop unnecessary column
-edu_data_per_student = drop_col(edu_data_per_student, ['Country_y'])
+edu_data_per_student = drop_columns(edu_data_per_student, ['Country_y'])
 
 #rename column label
-edu_data_per_student = rename_col(edu_data_per_student, {'Country_x': 'Country', 0: 'pre_primary_per_student',
+edu_data_per_student = rename_columns(edu_data_per_student, {'Country_x': 'Country', 0: 'pre_primary_per_student',
                                                          1: 'primary_per_student', 2: 'lower_sec_per_student'})
-
-#check number on Nan in edu_data_per_student
-index1 = np.where(edu_data_per_student['pre_primary_per_student'].isnull())[0]
-# pre_primary => CAN, GRC, MAC, OAVG, SGP, TUR
-# primary =>  CAN, GRC, HKG, MAC, OAVG, SGP, TUR
-# secondary => CAN, GRC, HKG, MAC, OAVG, SGP
-# sum = [CAN, GRC, HKG, MAC, OAVG, SGP, TUR] [ISR, PER, SVN]
-# moze ISR, PER ma inny system edukacji bo brakuje danych tylko dla secondary, moze ekstrapolacje dla SVN
 
 #estimate total expenses per student in a given country
 student_total_expenses = estimate_total_cost(edu_data_per_student)
@@ -200,40 +192,13 @@ student_total_expenses = student_total_expenses[student_total_expenses.Total != 
 student_total_expenses.reset_index(drop=True, inplace=True)
 
 
-### 7/ make OLS for total education cost and PISA results form 2015 (3 separate subjects)
-
-#add column with country name
-student_total_expenses = add_country_col(student_total_expenses, code_name_map)
-
-#merge with PISA results
-pisa_expenses = merge_df(all_pisa_2015, student_total_expenses)
-
-#rename column label
-rename_col(pisa_expenses, {'Country_x': 'Country'})
-
-#perform OLS
-model_math_expenses = smf.ols(formula='math ~ Total', data=pisa_expenses).fit()
-model_read_expenses = smf.ols(formula='read ~ Total', data=pisa_expenses).fit()
-model_scie_expenses = smf.ols(formula='science ~ Total', data=pisa_expenses).fit()
-
-#show summary
-model_math_expenses.summary()
-model_read_expenses.summary()
-model_scie_expenses.summary()
-
-#plot
-plot_math_expenses = show_scatterplot(pisa_expenses, ['Total', 'math'], 'r')
-plot_read_expenses = show_scatterplot(pisa_expenses, ['Total', 'read'], 'b')
-plot_scie_expenses = show_scatterplot(pisa_expenses, ['Total', 'science'], 'g')
-
-
-### 7A/ OLS for total education cost and average PISA results from 2015
+### 7/ OLS for total education cost and average PISA results from 2015
 
 #merge with average PISA results
-pisa_ave_expenses = merge_df(all_pisa_2015_ave, student_total_expenses)
+pisa_ave_expenses = merge_df_onCode(all_pisa_2015_ave, student_total_expenses)
 
 #rename column label
-rename_col(pisa_ave_expenses, {'Country_x': 'Country'})
+rename_columns(pisa_ave_expenses, {'Country_x': 'Country'})
 
 #leave LUX out as an outlier
 pisa_ave_expenses_lux = pisa_ave_expenses[pisa_ave_expenses['Code'] != 'LUX']

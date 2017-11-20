@@ -135,6 +135,14 @@ def show_multi_scatterplot(df_data, indicators, colors):
 #basic_edu_exp.drop('EDULIT_IND', axis=0, inplace=True)
 
 
+#check number on Nan in edu_data_per_student
+index1 = np.where(edu_data_per_student['pre_primary_per_student'].isnull())[0]
+# pre_primary => CAN, GRC, MAC, OAVG, SGP, TUR
+# primary =>  CAN, GRC, HKG, MAC, OAVG, SGP, TUR
+# secondary => CAN, GRC, HKG, MAC, OAVG, SGP
+# sum = [CAN, GRC, HKG, MAC, OAVG, SGP, TUR] [ISR, PER, SVN]
+# maybe ISR, PER have different ed system, there's a huge lack for secondary, maybe extrapolation for SVN
+
 def total_student_cost(df_data):
     """Takes df_data and estimates total cos per student during 12 years of education
     :returns total_cost: total_cost df with country Code and total cost"""
@@ -194,6 +202,33 @@ def total_student_cost_v2(df_data):
 
 #taking log
 #https://stats.stackexchange.com/questions/298/in-linear-regression-when-is-it-appropriate-to-use-the-log-of-an-independent-va
+
+### 7A/ make OLS for total education cost and PISA results form 2015 (3 separate subjects)
+
+#add column with country name
+student_total_expenses = add_country_col(student_total_expenses, code_name_map)
+
+#merge with PISA results
+pisa_expenses = merge_df(all_pisa_2015, student_total_expenses)
+
+#rename column label
+rename_col(pisa_expenses, {'Country_x': 'Country'})
+
+#perform OLS
+model_math_expenses = smf.ols(formula='math ~ Total', data=pisa_expenses).fit()
+model_read_expenses = smf.ols(formula='read ~ Total', data=pisa_expenses).fit()
+model_scie_expenses = smf.ols(formula='science ~ Total', data=pisa_expenses).fit()
+
+#show summary
+model_math_expenses.summary()
+model_read_expenses.summary()
+model_scie_expenses.summary()
+
+#plot
+plot_math_expenses = show_scatterplot(pisa_expenses, ['Total', 'math'], 'r')
+plot_read_expenses = show_scatterplot(pisa_expenses, ['Total', 'read'], 'b')
+plot_scie_expenses = show_scatterplot(pisa_expenses, ['Total', 'science'], 'g')
+
 
 
 """Getting GDP data:
