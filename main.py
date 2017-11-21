@@ -118,7 +118,7 @@ gov_edu_expenses = read_csv_data_by_list('gov_exp_edu_ppp.csv', countries_codes)
 basic_edu_exp = filter_by_indicator(gov_edu_expenses, ['X_PPP_02_FSGOV', 'X_PPP_1_FSGOV', 'X_PPP_2_FSGOV'])
 
 #drop unnecessary column
-basic_edu_exp = drop_columns(basic_edu_exp, ['TIME', 'Flag Codes', 'Flags'])
+drop_columns(basic_edu_exp, ['TIME', 'Flag Codes', 'Flags'])
 
 #pivot df to get similar structure like student_count_data
 basic_edu_exp = basic_edu_exp.pivot_table('Value', ['Country', 'Time'], 'EDULIT_IND')
@@ -127,8 +127,8 @@ basic_edu_exp = basic_edu_exp.pivot_table('Value', ['Country', 'Time'], 'EDULIT_
 basic_edu_exp.reset_index(level=['Country', 'Time'], inplace=True)
 
 #rename column labels
-basic_edu_exp = rename_columns(
-    basic_edu_exp, { 'X_PPP_02_FSGOV': 'pre_primary_exp', 'X_PPP_1_FSGOV': 'primary_exp', 'X_PPP_2_FSGOV': 'lower_sec_exp'})
+rename_columns(basic_edu_exp,
+                {'X_PPP_02_FSGOV': 'pre_primary_exp', 'X_PPP_1_FSGOV': 'primary_exp', 'X_PPP_2_FSGOV': 'lower_sec_exp'})
 
 #add new column with country code
 basic_edu_exp = add_country_code(basic_edu_exp, name_code_dict)
@@ -145,11 +145,11 @@ SP.SEC.LTOT.IN   	Population of the official age for lower secondary education, 
 """
 basic_student_pop = load_from_wbdata(countries_codes, edu_indicators, 2003, 2014)
 
-#reset multiindex "country' and 'date'
+#reset multiindex
 basic_student_pop.reset_index(level=['country', 'date'], inplace=True)
 
 #rename column labels
-basic_student_pop = rename_columns(basic_student_pop, {'country': 'Country', 'date': 'Time'})
+rename_columns(basic_student_pop, {'country': 'Country', 'date': 'Time'})
 
 #change column order
 basic_student_pop = basic_student_pop[['Country', 'Time', 'pre_primary_pop', 'primary_pop', 'lower_sec_pop']]
@@ -175,13 +175,6 @@ edu_data_joined.reset_index(level=0, drop=True, inplace=True)
 edu_data_per_student = divide_col_by_col(edu_data_joined, ['pre_primary_exp', 'primary_exp', 'lower_sec_exp'],
                                          ['pre_primary_pop', 'primary_pop', 'lower_sec_pop'])
 
-#drop unnecessary column
-edu_data_per_student = drop_columns(edu_data_per_student, ['Country_y'])
-
-#rename column label
-edu_data_per_student = rename_columns(edu_data_per_student, {'Country_x': 'Country', 0: 'pre_primary_per_student',
-                                                         1: 'primary_per_student', 2: 'lower_sec_per_student'})
-
 #estimate total expenses per student in a given country
 student_total_expenses = estimate_total_cost(edu_data_per_student)
 
@@ -190,6 +183,9 @@ student_total_expenses = student_total_expenses[student_total_expenses.Total != 
 
 #reset index
 student_total_expenses.reset_index(drop=True, inplace=True)
+
+#add column with country name
+add_country_name(student_total_expenses, code_name_dict)
 
 
 ### 7/ OLS for total education cost and average PISA results from 2015
@@ -200,32 +196,49 @@ pisa_ave_expenses = merge_df_onCode(all_pisa_2015_ave, student_total_expenses)
 #rename column label
 rename_columns(pisa_ave_expenses, {'Country_x': 'Country'})
 
+#plot
+plot_ave_expenses = show_scatterplot(pisa_ave_expenses, ['Total', 'ave_result'], 'y',
+                                     'PISA 2015 average result vs. Total expenses on education per student',
+                                     'expenses ($)', 'average test result (points)')
+
+#take log from expenses
+pisa_ave_expenses_log = take_log(pisa_ave_expenses, ['Total'])
+
+#plot with expenses log
+plot_ave_expenses_log = show_scatterplot(pisa_ave_expenses_log, ['Total_log', 'ave_result'], 'm',
+                                        'PISA 2015 average result vs. Total expenses on education per student (log)',
+                                         'expenses (log)', 'average test result (points)')
+
 #leave LUX out as an outlier
-pisa_ave_expenses_lux = pisa_ave_expenses[pisa_ave_expenses['Code'] != 'LUX']
+pisa_ave_expenses_log_lux = pisa_ave_expenses_log[pisa_ave_expenses_log['Code'] != 'LUX']
+
+#leave BRA out as an outlier
+pisa_ave_expenses_log_lux_bra = pisa_ave_expenses_log_lux[pisa_ave_expenses_log_lux['Code'] != 'BRA']
 
 #perform OLS
 model_ave_expenses = smf.ols(formula='ave_result ~ Total', data=pisa_ave_expenses).fit()
-model_ave_expenses_lux = smf.ols(formula='ave_result ~ Total', data=pisa_ave_expenses_lux).fit()
+model_ave_expenses_log = smf.ols(formula='ave_result ~ Total_log', data=pisa_ave_expenses_log).fit()
+model_ave_expenses_log_lux = smf.ols(formula='ave_result ~ Total_log', data=pisa_ave_expenses_log_lux).fit()
+model_ave_expenses_log_lux_bra = smf.ols(formula='ave_result ~ Total_log', data=pisa_ave_expenses_log_lux_bra).fit()
 
 #show summary
 model_ave_expenses.summary()
-model_ave_expenses_lux.summary()
-
-#plot
-plot_ave_expenses = show_scatterplot(pisa_ave_expenses, ['Total', 'ave_result'], 'm')
+model_ave_expenses_log.summary()
+model_ave_expenses_log_lux.summary()
+model_ave_expenses_log_lux_bra.summary()
 
 #plot with curve
-lin_pisa_ave_expenses = fit_data_mat(pisa_ave_expenses['Total'], pisa_ave_expenses['ave_result'], 1,
-                                 'expenses on education per student', 'average pisa result')
+lin_ave_expenses_log = fit_data_mat(pisa_ave_expenses_log['Total_log'], pisa_ave_expenses_log['ave_result'], 1,
+                                   'Regression analysis curve fit', 'Total expenses on education per student (log)',
+                                   'average test result (points)')
 
-lin_pisa_ave_expenses_2 = fit_data_sea(pisa_ave_expenses['Total'], pisa_ave_expenses['ave_result'], 1,
-                                      'expenses on education per student', 'average pisa result')
+lin_ave_expenses_log_lux = fit_data_mat(pisa_ave_expenses_log_lux['Total_log'], pisa_ave_expenses_log_lux ['ave_result'], 1,
+                                       'Regression analysis curve fit (without Luxembourg)',
+                                        'Total expenses on education per student (log)', 'average test result (points)')
 
-quad_pisa_ave_expenses = fit_data_mat(pisa_ave_expenses['Total'], pisa_ave_expenses['ave_result'], 2,
-                                 'expenses on education per student', 'average pisa result')
-
-quad_pisa_ave_expenses_2 = fit_data_sea(pisa_ave_expenses['Total'], pisa_ave_expenses['ave_result'], 2,
-                                    'expenses on education per student', 'average pisa result')
+lin_ave_expenses_log_lux_bra = fit_data_mat(pisa_ave_expenses_log_lux_bra['Total_log'], pisa_ave_expenses_log_lux_bra['ave_result'], 1,
+                                       'Regression analysis curve fit (without Luxembourg, Brazil)',
+                                        'Total expenses on education per student (log)', 'average test result (points)')
 
 
 

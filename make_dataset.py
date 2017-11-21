@@ -199,7 +199,6 @@ def drop_columns(df_data, del_col):
     :param del_col: list"""
     for i in del_col:
         df_data.drop(i, axis=1, inplace=True)
-    return df_data
 
 def divide_col_by_col(df_data, dividends, divisors):
     """Takes df_data and divides columns accordingly by rule dividends/divisors,
@@ -212,8 +211,11 @@ def divide_col_by_col(df_data, dividends, divisors):
     df_data_div = df_data.copy()
     for n in range(len(dividends)):
         df_data_div[n] = df_data_div[dividends[n]] / df_data_div[divisors[n]] * 1000000
-    drop_col(df_data_div, [dividends + divisors])
     df_data_div.round(0)
+    drop_columns(df_data_div, [dividends + divisors])
+    drop_columns(df_data_div, ['Country_y'])
+    rename_columns(df_data_div, {'Country_x': 'Country', 0: 'pre_primary_per_student',
+                                          1: 'primary_per_student', 2: 'lower_sec_per_student'})
     return df_data_div
 
 def estimate_total_cost(df_data):
