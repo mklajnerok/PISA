@@ -101,7 +101,6 @@ def add_country_name(df_data, code_name_dict):
     mapper = lambda x: code_name_dict[x]
     df_data.insert(loc=0, column='Country', value=df_data.loc[:, 'Code'].copy())
     df_data['Country'] = df_data['Country'].apply(mapper)
-    return df_data
 
 def get_average(df_data):
     """Takes a copy of df_data and calculate average pisa result for a given country,
@@ -152,7 +151,6 @@ def add_country_code(df_data, name_code_dict):
     mapper = lambda x: name_code_dict[x]
     df_data.insert(loc=1, column='Code', value=df_data.loc[:, 'Country'].copy())
     df_data['Code'] = df_data['Code'].apply(mapper)
-    return df_data
 
 def merge_df_onCode(df_data1, df_data2):
     """Merge two data frames on Code column, drop double country column
