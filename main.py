@@ -72,7 +72,7 @@ rename_columns(pisa_ave_gdp_ppp, {'Country_x': 'Country'})
 
 #plot
 plot_ave_gdp_ppp = show_scatterplot(pisa_ave_gdp_ppp, ['gdp_ppp', 'ave_result'], 'y',
-                                    'PISA 2015 average result vs. GDP per capita', 'GDP per capita ($)',
+                                    'PISA 2015 average result vs. GDP per capita', 'GDP per capita (PPP $)',
                                     'average test result (points)')
 
 #take log from GDP values
@@ -198,16 +198,16 @@ rename_columns(pisa_ave_expenses, {'Country_x': 'Country'})
 
 #plot
 plot_ave_expenses = show_scatterplot(pisa_ave_expenses, ['Total', 'ave_result'], 'y',
-                                     'PISA 2015 average result vs. Total expenses on education per student',
-                                     'expenses ($)', 'average test result (points)')
+                                     'PISA 2015 average result vs. total expenses on education per student',
+                                     'expenses per student (PPP $)', 'average test result (points)')
 
 #take log from expenses
 pisa_ave_expenses_log = take_log(pisa_ave_expenses, ['Total'])
 
 #plot with expenses log
 plot_ave_expenses_log = show_scatterplot(pisa_ave_expenses_log, ['Total_log', 'ave_result'], 'm',
-                                        'PISA 2015 average result vs. Total expenses on education per student (log)',
-                                         'expenses (log)', 'average test result (points)')
+                                        'PISA 2015 average result vs. total expenses on education per student (log)',
+                                         'expenses per student (log)', 'average test result (points)')
 
 #leave LUX out as an outlier
 pisa_ave_expenses_log_lux = pisa_ave_expenses_log[pisa_ave_expenses_log['Code'] != 'LUX']
@@ -238,7 +238,7 @@ lin_ave_expenses_log_lux = fit_data_mat(pisa_ave_expenses_log_lux['Total_log'], 
 
 lin_ave_expenses_log_lux_bra = fit_data_mat(pisa_ave_expenses_log_lux_bra['Total_log'], pisa_ave_expenses_log_lux_bra['ave_result'], 1,
                                        'Regression analysis curve fit (without Luxembourg, Brazil)',
-                                        'Total expenses on education per student (log)', 'average test result (points)')
+                                        'expenses per student (log)', 'average test result (points)')
 
 
 
