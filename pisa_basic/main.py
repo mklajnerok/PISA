@@ -3,7 +3,7 @@
 ### 1/ get PISA test results for 2015
 
 #change directory
-os.chdir('/Users/wikia/PycharmProjects/PISA')
+os.chdir('/Users/wikia/PycharmProjects/PISA/pisa_basic')
 
 #read in files with PISA results, separate for every subject (all years)
 pisa_data = read_multi_csv_data(['pisa_math_2003_2015.csv', 'pisa_read_2000_2015.csv', 'pisa_science_2006_2015.csv'])
@@ -131,7 +131,7 @@ rename_columns(basic_edu_exp,
                 {'X_PPP_02_FSGOV': 'pre_primary_exp', 'X_PPP_1_FSGOV': 'primary_exp', 'X_PPP_2_FSGOV': 'lower_sec_exp'})
 
 #add new column with country code
-basic_edu_exp = add_country_code(basic_edu_exp, name_code_dict)
+add_country_code(basic_edu_exp, name_code_dict)
 
 
 ### 5/ get population number from pre-primary, primary and lower-secondary levels
@@ -155,7 +155,7 @@ rename_columns(basic_student_pop, {'country': 'Country', 'date': 'Time'})
 basic_student_pop = basic_student_pop[['Country', 'Time', 'pre_primary_pop', 'primary_pop', 'lower_sec_pop']]
 
 #add new column with country code
-basic_student_pop = add_country_code(basic_student_pop, name_code_dict)
+add_country_code(basic_student_pop, name_code_dict)
 
 
 ### 6/ estimate average spending for education per student until he takes the test in 2015 (US$)
@@ -239,6 +239,8 @@ lin_ave_expenses_log_lux = fit_data_mat(pisa_ave_expenses_log_lux['Total_log'], 
 lin_ave_expenses_log_lux_bra = fit_data_mat(pisa_ave_expenses_log_lux_bra['Total_log'], pisa_ave_expenses_log_lux_bra['ave_result'], 1,
                                        'Regression analysis curve fit (without Luxembourg, Brazil)',
                                         'expenses per student (log)', 'average test result (points)')
+
+
 
 
 
